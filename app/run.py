@@ -26,11 +26,11 @@ def tokenize(text):
     return clean_tokens
 
 # load data
-engine = create_engine('sqlite:///../data/YourDatabaseName.db')
-df = pd.read_sql_table('YourTableName', engine)
+engine = create_engine('sqlite:///../data/DisasterResponse.db')
+df = pd.read_sql_table('disaster_messages', engine)
 
 # load model
-model = joblib.load("../models/your_model_name.pkl")
+model = joblib.load("../models/classifier.pkl")
 
 
 # index webpage displays cool visuals and receives user input text for model
@@ -43,9 +43,20 @@ def index():
     genre_counts = df.groupby('genre').count()['message']
     genre_names = list(genre_counts.index)
     
+    category_counts = df.iloc[:,4:].sum()
+    category_names = list(df.iloc[:0,4:])
+    
+    #including a column in df to count the number of words in a sentence
+    df['totalwords'] = df['message'].str.split().str.len()
+    
+    words_mean = df.groupby(['genre'])['totalwords'].mean()
+    
+    
+    
     # create visuals
     # TODO: Below is an example - modify to create your own visuals
     graphs = [
+            #Graph one - genre
         {
             'data': [
                 Bar(
@@ -58,6 +69,48 @@ def index():
                 'title': 'Distribution of Message Genres',
                 'yaxis': {
                     'title': "Count"
+                },
+                'xaxis': {
+                    'title': "Genre"
+                }
+            }
+        },
+        
+        #Graph two - categories
+        
+        {
+            'data': [
+                Bar(
+                    x=category_names,
+                    y=category_counts
+                )
+            ],
+
+            'layout': {
+                'title': 'Distribution of Message Categories',
+                'yaxis': {
+                    'title': "Count"
+                },
+                'xaxis': {
+                    'title': "Categories"
+                }
+            }
+        },
+        
+        #Graph three - mean of words in a sentence by genre type
+        
+        {
+            'data': [
+                Bar(
+                    x=genre_names,
+                    y=words_mean
+                )
+            ],
+
+            'layout': {
+                'title': 'Mean words in a sentence per genres',
+                'yaxis': {
+                    'title': "Mean"
                 },
                 'xaxis': {
                     'title': "Genre"

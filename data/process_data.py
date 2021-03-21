@@ -4,8 +4,8 @@ import numpy as np
 from sqlalchemy import create_engine
 
 def load_data(messages_filepath, categories_filepath):
-    messages = pd.read_csv('messages_filepath')
-    categories = pd.read_csv('categories_filepath')
+    messages = pd.read_csv(messages_filepath)
+    categories = pd.read_csv(categories_filepath)
     df = pd.merge(messages, categories, left_on='id', right_on='id', how='left')
     return df
 

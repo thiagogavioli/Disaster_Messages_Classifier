@@ -1,3 +1,8 @@
+import nltk
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('averaged_perceptron_tagger')
+
 import sys
 import pickle
 import pandas as pd
@@ -6,22 +11,25 @@ from sqlalchemy import create_engine
 import re
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
-
+from sklearn.base import BaseEstimator,TransformerMixin
 
 def load_data(database_filepath):
     table = 'disaster_messages'
     engine = create_engine('sqlite:///{}'.format(database_filepath))
     df = pd.read_sql(table, engine)
     X = df['message']
-    y = df.iloc[:,4:]
-    return X,y
+    Y = df.iloc[:,4:]
+    
+    category_names = list(Y.columns.values)
+    
+    return X, Y, category_names
 
 
 def tokenize(text):
@@ -33,34 +41,58 @@ def tokenize(text):
         clean_tokens.append(clean_tok)
     return clean_tokens
 
+# Build a custom transformer which will extract the starting verb of a sentence
+class StartingVerbExtractor(BaseEstimator, TransformerMixin):
+
+    def starting_verb(self, text):
+        sentence_list = nltk.sent_tokenize(text)
+        for sentence in sentence_list:
+            pos_tags = nltk.pos_tag(tokenize(sentence))
+            first_word, first_tag = pos_tags[0]
+            if first_tag in ['VB', 'VBP'] or first_word == 'RT':
+                return True
+        return False
+
+    def fit(self, x, y=None):
+        return self
+
+    def transform(self, X):
+        X_tagged = pd.Series(X).apply(self.starting_verb)
+        return pd.DataFrame(X_tagged)
 
 def build_model():
     pipeline = Pipeline([
-    ('vect', CountVectorizer(tokenizer=tokenize)),
-    ('tfidf', TfidfTransformer()),
-    ('clf', MultiOutputClassifier(AdaBoostClassifier()))])
+        ('features', FeatureUnion([
+            
+            ('nlp_pipeline', Pipeline([
+                ('vect', CountVectorizer(tokenizer=tokenize)),
+                ('tfidf', TfidfTransformer(use_idf=False))
+            ])),
+            
+            ('sve', StartingVerbExtractor())
+        ])),
+        
+        ('clf', MultiOutputClassifier(AdaBoostClassifier()))
+        
+        ])
     
-    parameters = {'tfidf__use_idf': (True, False), 
-                  'clf__estimator__n_estimators': [50, 100],
-                  'clf__estimator__learning_rate': [1,2]}
+    parameters = {'clf__estimator__n_estimators': [50, 100],
+              'clf__estimator__learning_rate': [1,2]
+    }
+ 
+    return GridSearchCV(pipeline, param_grid=parameters, cv=2, verbose=3)
 
-    cv = GridSearchCV(pipeline, param_grid=parameters)
-    return cv
 
-
-def evaluate_model(model, X, y):
-    X_train, y_train, X_test, y_test = train_test_split(X, y, test_size=0.3, random_state=45)
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    for i, col in enumerate(y_test):
+def evaluate_model(model, X_test, Y_test, category_names):
+    Y_pred = model.predict(X_test)
+    for i, col in enumerate(Y_test):
         print(col)
-        print(classification_report(y_test[col], y_pred[:,i]))
+        print(classification_report(Y_test[col], Y_pred[:,i]))
     return model
 
 
-def save_model(model):
-    with open('model.pkl', 'wb') as f:
-         pickle.dump(model, f)
+def save_model(model, model_filepath):
+    pickle.dump(model.best_estimator_, open(model_filepath, 'wb'))
 
 
 def main():
