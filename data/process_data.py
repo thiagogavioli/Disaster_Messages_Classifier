@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 
 #Load and merge datasets
 def load_data(messages_filepath, categories_filepath):
-     """
+    """
     Load Messages and categories Data to merge
     
     Arguments:

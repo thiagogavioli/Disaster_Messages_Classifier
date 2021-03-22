@@ -19,10 +19,10 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, TransformerMixin
 
 def load_data(database_filepath):
-     """
+    """
     Load Data from the Database
     
     Arguments:
@@ -35,6 +35,9 @@ def load_data(database_filepath):
     table = 'disaster_messages'
     engine = create_engine('sqlite:///{}'.format(database_filepath))
     df = pd.read_sql(table, engine)
+    df.drop(['child_alone'], inplace = True, axis=1)
+    df['related'] = df['related'].map(lambda x: 1 if x==2 else x)
+    
     X = df['message']
     Y = df.iloc[:,4:]
     
@@ -151,7 +154,7 @@ def save_model(model, model_filepath):
 
 
 def main():
-     """
+    """
     Train Classifier Main function
     
     The function starts the Machine Learning Pipeline:
