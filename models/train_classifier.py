@@ -19,7 +19,7 @@ from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
-from sklearn.base import BaseEstimator,TransformerMixin
+from sklearn.base import BaseEstimator
 
 def load_data(database_filepath):
      """
