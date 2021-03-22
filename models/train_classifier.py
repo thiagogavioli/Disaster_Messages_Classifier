@@ -1,3 +1,4 @@
+#import the necessary libraries
 import nltk
 nltk.download('punkt')
 nltk.download('wordnet')
@@ -21,6 +22,16 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator,TransformerMixin
 
 def load_data(database_filepath):
+     """
+    Load Data from the Database
+    
+    Arguments:
+        database_filepath -> Path to SQLite database
+    Output:
+        X -> a dataframe containing features
+        Y -> a dataframe containing labels
+        category_names -> List of categories name
+    """
     table = 'disaster_messages'
     engine = create_engine('sqlite:///{}'.format(database_filepath))
     df = pd.read_sql(table, engine)
@@ -33,6 +44,14 @@ def load_data(database_filepath):
 
 
 def tokenize(text):
+    """
+    Tokenize the text
+    
+    Arguments:
+        text -> Text message which needs to be tokenized
+    Output:
+        clean_tokens -> List of tokens extracted from text
+    """
     tokens = word_tokenize(text)
     lemmatizer = WordNetLemmatizer()
     clean_tokens = []
@@ -43,6 +62,12 @@ def tokenize(text):
 
 # Build a custom transformer which will extract the starting verb of a sentence
 class StartingVerbExtractor(BaseEstimator, TransformerMixin):
+    """
+    Starting Verb Extractor class
+    
+    This class extract the starting verb of a sentence and 
+    create a new feature for the ML classifier
+    """
 
     def starting_verb(self, text):
         sentence_list = nltk.sent_tokenize(text)
@@ -61,6 +86,13 @@ class StartingVerbExtractor(BaseEstimator, TransformerMixin):
         return pd.DataFrame(X_tagged)
 
 def build_model():
+    """
+    Build a model
+    
+    Output:
+        An optimized Scikit ML Pipeline that process text messages and apply a classifier.
+        
+    """
     pipeline = Pipeline([
         ('features', FeatureUnion([
             
@@ -84,6 +116,19 @@ def build_model():
 
 
 def evaluate_model(model, X_test, Y_test, category_names):
+    """
+    MultiOutput classification report
+        
+    Arguments:
+        model -> model used to make the predictions
+        X_test -> test features as input for the model
+        y_test -> test target to compare with the new predictions
+        category_names -> categories names from the target information
+    
+    Output:
+        Classification report -> Report with precision, recall and F1-score
+        for each category
+    """
     Y_pred = model.predict(X_test)
     for i, col in enumerate(Y_test):
         print(col)
@@ -92,10 +137,30 @@ def evaluate_model(model, X_test, Y_test, category_names):
 
 
 def save_model(model, model_filepath):
+    """
+    Save Pipeline model
+    
+    This function saves trained model as Pickle file, to be loaded later
+    
+    Arguments:
+        model -> GridSearchCV or Scikit Pipeline object
+        pickle_filepath -> destination path to save .pkl file
+    
+    """
     pickle.dump(model.best_estimator_, open(model_filepath, 'wb'))
 
 
 def main():
+     """
+    Train Classifier Main function
+    
+    The function starts the Machine Learning Pipeline:
+        1) Extract data from SQLite db
+        2) Train ML model on training set
+        3) show the model performance on test set
+        4) Save trained model as Pickle file
+    
+    """
     if len(sys.argv) == 3:
         database_filepath, model_filepath = sys.argv[1:]
         print('Loading data...\n    DATABASE: {}'.format(database_filepath))
